@@ -1,5 +1,7 @@
 # Transfer Nightscout data to LibreView
-Transfer your diabetes data from Nightscout to LibreView.
+Transfer your diabetes data from Nightscout to LibreView. 
+Support Nightscout 15.
+Support V1 and V3 data.
 
 ## Requirements
 - git
