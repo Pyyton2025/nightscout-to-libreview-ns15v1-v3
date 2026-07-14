@@ -3,152 +3,142 @@ const dayjs = require('dayjs');
 const colors = require('colors');
 
 const getNightscoutToken = function (token) {
-  if (token.trim() !== '') {
-    return `&token=${token.trim()}`
+  if (token && token.trim() !== '') {
+    return `&token=${token.trim()}`;
   }
-
   return '';
 };
 
+const toISO = (dateStr) => dayjs(dateStr).startOf('day').toISOString();
+
 const getNightscoutFoodEntries = async function (baseUrl, token, fromDate, toDate) {
-  const url1 = `${baseUrl}/api/v1/treatments.json?find[created_at][$gte]=${fromDate}&find[created_at][$lte]=${toDate}&find[eventType]=Meal%20Bolus&count=131072${getNightscoutToken(token)}`;
-  console.log('entries url', url1.gray);
+  const isoFrom = toISO(fromDate);
+  const isoTo = dayjs(toDate).endOf('day').toISOString();
 
-  const response1 = await axios.get(url1, {
-    headers: {
-      'Content-Type': 'application/json'
-    }
-  });
+  const fetch = async (type) => {
+    const url = `${baseUrl}/api/v1/treatments.json?find[created_at][$gte]=${isoFrom}&find[created_at][$lte]=${isoTo}&find[eventType]=${encodeURIComponent(type)}&count=131072${getNightscoutToken(token)}`;
+    console.log(`[FOOD] Request: ${url}`.gray);
+    const response = await axios.get(url);
+    return response.data.map(d => ({
+      id: parseInt(`2${dayjs(d.created_at).format('YYYYMMDDHHmmss')}`),
+      timestamp: d.created_at,
+      carbs: d.carbs
+    }));
+  };
 
-  const data1 = response1.data.map(d => {
-    return {
-      id: parseInt(`2${dayjs(d['created_at']).format('YYYYMMDDHHmmss')}`),
-      timestamp: d['created_at'],
-      carbs: d.carbs,
-      absorptionTime: d.absorptionTime,
-      foodType: d.foodType
-    };
-  });
+  const data1 = await fetch('Meal Bolus');
+  const data2 = await fetch('Carb Correction');
 
-  const url2 = `${baseUrl}/api/v1/treatments.json?find[created_at][$gte]=${fromDate}&find[created_at][$lte]=${toDate}&find[eventType]=Carb%20Correction&count=131072${getNightscoutToken(token)}`;
-  console.log('entries url', url2.gray);
-
-  const response2 = await axios.get(url2, {
-    headers: {
-      'Content-Type': 'application/json'
-    }
-  });
-
-  const data2 = response2.data.map(d => {
-    return {
-      id: parseInt(`2${dayjs(d['created_at']).format('YYYYMMDDHHmmss')}`),
-      timestamp: d['created_at'],
-      carbs: d.carbs,
-      absorptionTime: d.absorptionTime,
-      foodType: d.foodType
-    };
-  });
-
-  return [...data1, ...data2].map(e => {
-    return {
-      extendedProperties: {
-        factoryTimestamp: e.timestamp
-      },
-      recordNumber: e.id,
-      timestamp: e.timestamp,
-      gramsCarbs: e.carbs,
-      foodType: "Unknown"
-    };
-  });
-};
-
-const getNightscoutGlucoseEntries = async function (baseUrl, token, fromDate, toDate) {
-  const url = `${baseUrl}/api/v1/entries.json?find[dateString][$gte]=${fromDate}&find[dateString][$lte]=${toDate}&count=131072${getNightscoutToken(token)}`;
-  console.log('glucose entries url', url.gray);
-
-  const response = await axios.get(url, {
-    headers: {
-      'Content-Type': 'application/json'
-    }
-  });
-
-  const data = response.data.filter((value, index, Arr) => index % 3 == 0).map(d => {
-    return {
-      id: parseInt(`1${dayjs(d.dateString).format('YYYYMMDDHHmmss')}`),
-      sysTime: d.sysTime,
-      dateString: d.dateString,
-      sgv: d.sgv,
-      delta: d.delta,
-      direction: d.direction
-    };
-  });
-
-  return data.map(e => {
-    return {
-      "extendedProperties": {
-        "highOutOfRange": e.sgv >= 400 ? "true" : "false",
-        "canMerge": "true",
-        "isFirstAfterTimeChange": false,
-        "factoryTimestamp": e.sysTime,
-        "lowOutOfRange": e.sgv <= 40 ? "true" : "false"
-      },
-      "recordNumber": e.id,
-      "timestamp": e.dateString,
-      "valueInMgPerDl": e.sgv
-    };
-  });
+  return [...data1, ...data2].filter(e => e.carbs > 0).map(e => ({
+    extendedProperties: { factoryTimestamp: e.timestamp },
+    recordNumber: e.id,
+    timestamp: dayjs(e.timestamp).format('YYYY-MM-DDTHH:mm:ss'),
+    gramsCarbs: e.carbs,
+    foodType: "Unknown"
+  }));
 };
 
 const getNightscoutInsulinEntries = async function (baseUrl, token, fromDate, toDate) {
-  const url1 = `${baseUrl}/api/v1/treatments.json?find[created_at][$gte]=${fromDate}&find[created_at][$lte]=${toDate}&find[eventType]=Correction%20Bolus&count=131072${getNightscoutToken(token)}`;
-  console.log('insulin entries url', url1.gray);
+  const isoFrom = toISO(fromDate);
+  const isoTo = dayjs(toDate).endOf('day').toISOString();
 
-  const response1 = await axios.get(url1, {
-    headers: {
-      'Content-Type': 'application/json'
+  const fetch = async (type) => {
+    const url = `${baseUrl}/api/v1/treatments.json?find[created_at][$gte]=${isoFrom}&find[created_at][$lte]=${isoTo}&find[eventType]=${encodeURIComponent(type)}&count=131072${getNightscoutToken(token)}`;
+    console.log(`[INSULIN] Request: ${url}`.gray);
+    const response = await axios.get(url);
+    return response.data.map(d => ({
+      id: parseInt(`4${dayjs(d.created_at).format('YYYYMMDDHHmmss')}`),
+      timestamp: d.created_at,
+      insulin: d.insulin
+    }));
+  };
+
+  const data1 = await fetch('Correction Bolus');
+  const data2 = await fetch('Meal Bolus');
+
+  return [...data1, ...data2].filter(e => e.insulin > 0).map(e => ({
+    extendedProperties: { factoryTimestamp: e.timestamp },
+    recordNumber: e.id,
+    timestamp: dayjs(e.timestamp).format('YYYY-MM-DDTHH:mm:ss'),
+    units: e.insulin,
+    insulinType: "RapidActing"
+  }));
+};
+
+
+const getNightscoutGlucoseEntries = async function (baseUrl, token, fromDate, toDate) {
+  const fromMills = dayjs(fromDate).startOf('day').valueOf();
+  const toMills = dayjs(toDate).endOf('day').valueOf();
+  
+  const url = `${baseUrl}/api/v1/entries.json?find[date][$gte]=${fromMills}&find[date][$lte]=${toMills}&count=131072${getNightscoutToken(token)}`;
+  
+  console.log(`[DEBUG] Request URL: ${url}`.gray);
+  const response = await axios.get(url);
+  
+  let processed = response.data
+    .filter((d, index, self) => 
+      index === 0 || d.date !== self[index - 1].date
+    )
+    .filter((_, i) => i % 2 === 0) 
+    .map(d => ({
+      extendedProperties: { factoryTimestamp: dayjs(d.date).toISOString(), canMerge: "true" },
+      recordNumber: parseInt(`1${dayjs(d.date).format('YYYYMMDDHHmmss')}`),
+      timestamp: dayjs(d.date).format('YYYY-MM-DDTHH:mm:ss'),
+      valueInMgPerDl: d.sgv
+    }));
+
+  console.log(`[DEBUG] После очистки отправляется записей: ${processed.length}`.cyan);
+  return processed;
+};
+
+const selectUnscheduled = function (entries) {
+  const result = [];
+  const groups = entries.reduce((acc, entry) => {
+    const day = dayjs(entry.timestamp).format('YYYY-MM-DD');
+    if (!acc[day]) acc[day] = [];
+    acc[day].push(entry);
+    return acc;
+  }, {});
+
+  for (const dayEntries of Object.values(groups)) {
+    // Количество точек пик-пик
+    const count = Math.floor(Math.random() * (12 - 6 + 1)) + 6; 
+    const sortedEntries = dayEntries.sort((a, b) => dayjs(a.timestamp).valueOf() - dayjs(b.timestamp).valueOf());
+    const slotSize = Math.floor(sortedEntries.length / count);
+    
+    if (slotSize === 0) {
+      result.push(...sortedEntries);
+    } else {
+      for (let i = 0; i < count; i++) {
+        // Берем случайную запись из каждого конкретного временного интервала
+        const start = i * slotSize;
+        const end = (i === count - 1) ? sortedEntries.length : (i + 1) * slotSize;
+        const subSlot = sortedEntries.slice(start, end);
+        
+        if (subSlot.length > 0) {
+          const randomIndex = Math.floor(Math.random() * subSlot.length);
+          result.push(subSlot[randomIndex]);
+        }
+      }
     }
-  });
+  }
+  return result;
+};
 
-  const data1 = response1.data.map(d => {
-    return {
-      id: parseInt(`4${dayjs(d['created_at']).format('YYYYMMDDHHmmss')}`),
-      timestamp: d['created_at'],
-      insulin: d.insulin,
-      duration: d.duration
-    };
-  });
-
-  const url2 = `${baseUrl}/api/v1/treatments.json?find[created_at][$gte]=${fromDate}&find[created_at][$lte]=${toDate}&find[eventType]=Bolus&count=131072${getNightscoutToken(token)}`;
-  console.log('insulin entries url', url2.gray);
-
-  const response2 = await axios.get(url2, {
-    headers: {
-      'Content-Type': 'application/json'
-    }
-  });
-
-  const data2 = response2.data.map(d => {
-    return {
-      id: parseInt(`4${dayjs(d['created_at']).format('YYYYMMDDHHmmss')}`),
-      timestamp: d['created_at'],
-      insulin: d.insulin,
-      duration: d.duration
-    };
-  });
-
-  return [...data1, ...data2].map(e => {
-    return {
-      extendedProperties: {
-        factoryTimestamp: e.timestamp
-      },
-      recordNumber: e.id,
-      timestamp: e.timestamp,
-      units: e.insulin,
-      insulinType: "RapidActing"
-    };
-  });
+const getNightscoutAllEntries = async function (baseUrl, token, fromDate, toDate) {
+  const glucose = await getNightscoutGlucoseEntries(baseUrl, token, fromDate, toDate);
+  const food = await getNightscoutFoodEntries(baseUrl, token, fromDate, toDate);
+  const insulin = await getNightscoutInsulinEntries(baseUrl, token, fromDate, toDate);
+  
+  return { 
+    glucoseEntriesScheduled: glucose, 
+    glucoseEntriesUnscheduled: selectUnscheduled(glucose),
+    foodEntries: food, 
+    insulinEntries: insulin 
+  };
 };
 
 exports.getNightscoutFoodEntries = getNightscoutFoodEntries;
 exports.getNightscoutGlucoseEntries = getNightscoutGlucoseEntries;
 exports.getNightscoutInsulinEntries = getNightscoutInsulinEntries;
+exports.getNightscoutAllEntries = getNightscoutAllEntries;
