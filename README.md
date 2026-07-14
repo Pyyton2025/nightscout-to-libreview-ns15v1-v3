@@ -4,12 +4,13 @@ Transfer your diabetes data from Nightscout to LibreView.
 ## Requirements
 - git
 - nodejs
+- dont try to upload more than 90 days 
 
 ## First use
 
 Open command line in your favorite folder:
 ```
-git clone https://github.com/creepymonster/nightscout-to-libreview
+git clone https://github.com/PavelPP2007/nightscout-to-libreview.git
 cd nightscout-to-libreview
 npm install
 npm start
@@ -32,3 +33,4 @@ npm start
 - add notes from libreview
 - add basal insulin?!?
 - different libreview api endpoints
+  
