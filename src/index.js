@@ -26,7 +26,7 @@ prompt.get([{
   default: config.nightscoutUrl
 }, {
   name: 'nightscoutToken',
-  description: 'please enter your nightscout token',
+  description: 'please enter your nightscout secret key',
   required: false,
   default: config.nightscoutToken
 }, {
@@ -69,6 +69,14 @@ prompt.get([{
   required: true,
   type: 'boolean',
   default: false
+},
+{
+  name: 'transferMode',
+  description: 'Select mode: all, glucose, insulin, food',
+  required: true,
+  default: 'all',
+  pattern: /^(all|glucose|insulin|food)$/,
+  message: 'Must be one of: all, glucose, insulin, food'
 }], function (err, result) {
   if (err) {
     return onErr(err);
@@ -92,28 +100,29 @@ prompt.get([{
 
     console.log('transfer time span', fromDate.gray, '-', toDate.gray);
 
-	const allData = await nightscout.getNightscoutAllEntries(config.nightscoutUrl, config.nightscoutToken, fromDate, toDate);	
+	const allData = await nightscout.getNightscoutAllEntries(config.nightscoutUrl, config.nightscoutToken, fromDate, toDate);
 
-    if (
-    (allData.glucoseEntriesScheduled && allData.glucoseEntriesScheduled.length > 0) || 
-    (allData.glucoseEntriesUnscheduled && allData.glucoseEntriesUnscheduled.length > 0) || 
-    (allData.foodEntries && allData.foodEntries.length > 0) || 
-    (allData.insulinEntries && allData.insulinEntries.length > 0)
-) {
-    const auth = await libre.authLibreView(config.libreUsername, config.librePassword, config.libreDevice, result.libreResetDevice);
-    if (!!!auth) {
-        console.log('libre auth failed!'.red);
-        return;
-    }
-    await libre.transferLibreView(
-        config.libreDevice, 
-        auth, 
-        allData.glucoseEntriesScheduled, 
-        allData.glucoseEntriesUnscheduled, 
-        allData.foodEntries, 
-        allData.insulinEntries
-    );
-}
+	const glucoseScheduled = (result.transferMode === 'all' || result.transferMode === 'glucose') ? allData.glucoseEntriesScheduled : [];
+	const glucoseUnscheduled = (result.transferMode === 'all' || result.transferMode === 'glucose') ? allData.glucoseEntriesUnscheduled : [];
+	const food = (result.transferMode === 'all' || result.transferMode === 'food') ? allData.foodEntries : [];
+	const insulin = (result.transferMode === 'all' || result.transferMode === 'insulin') ? allData.insulinEntries : [];
+
+	if (glucoseScheduled.length > 0 || glucoseUnscheduled.length > 0 || food.length > 0 || insulin.length > 0) {
+		const auth = await libre.authLibreView(config.libreUsername, config.librePassword, config.libreDevice, result.libreResetDevice);
+		if (!!!auth) {
+			console.log('libre auth failed!'.red);
+			return;
+		}
+
+		await libre.transferLibreView(
+			config.libreDevice, 
+			auth, 
+			glucoseScheduled, 
+			glucoseUnscheduled, 
+			food, 
+			insulin
+		);
+	}
 	else
 	{
 		console.log('No entries'.blue);
