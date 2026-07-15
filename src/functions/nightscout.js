@@ -12,6 +12,7 @@ const getNightscoutToken = function (token) {
 const toISO = (dateStr) => dayjs(dateStr).startOf('day').toISOString();
 
 const getNightscoutFoodEntries = async function (baseUrl, token, fromDate, toDate) {
+  baseUrl = baseUrl.replace(/\/$/, "");
   const isoFrom = toISO(fromDate);
   const isoTo = dayjs(toDate).endOf('day').toISOString();
 
@@ -39,6 +40,7 @@ const getNightscoutFoodEntries = async function (baseUrl, token, fromDate, toDat
 };
 
 const getNightscoutInsulinEntries = async function (baseUrl, token, fromDate, toDate) {
+  baseUrl = baseUrl.replace(/\/$/, "");
   const isoFrom = toISO(fromDate);
   const isoTo = dayjs(toDate).endOf('day').toISOString();
 
@@ -67,6 +69,7 @@ const getNightscoutInsulinEntries = async function (baseUrl, token, fromDate, to
 
 
 const getNightscoutGlucoseEntries = async function (baseUrl, token, fromDate, toDate) {
+  baseUrl = baseUrl.replace(/\/$/, "");
   const fromMills = dayjs(fromDate).startOf('day').valueOf();
   const toMills = dayjs(toDate).endOf('day').valueOf();
   
@@ -126,6 +129,7 @@ const selectUnscheduled = function (entries) {
 };
 
 const getNightscoutAllEntries = async function (baseUrl, token, fromDate, toDate) {
+  baseUrl = baseUrl.replace(/\/$/, "");
   const glucose = await getNightscoutGlucoseEntries(baseUrl, token, fromDate, toDate);
   const food = await getNightscoutFoodEntries(baseUrl, token, fromDate, toDate);
   const insulin = await getNightscoutInsulinEntries(baseUrl, token, fromDate, toDate);
