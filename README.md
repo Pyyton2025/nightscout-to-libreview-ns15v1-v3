@@ -12,7 +12,7 @@ Support V1 and V3 data.
 
 Open command line in your favorite folder:
 ```
-git clone https://github.com/PavelPP2007/nightscout-to-libreview.git
+git clone https://github.com/Pyyton2025/nightscout-to-libreview.git
 cd nightscout-to-libreview
 npm install
 npm start
