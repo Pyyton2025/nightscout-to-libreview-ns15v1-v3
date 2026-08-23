@@ -16,27 +16,25 @@ const getNightscoutFoodEntries = async function (baseUrl, token, fromDate, toDat
   const isoFrom = toISO(fromDate);
   const isoTo = dayjs(toDate).endOf('day').toISOString();
 
-  const fetch = async (type) => {
-    const url = `${baseUrl}/api/v1/treatments.json?find[created_at][$gte]=${isoFrom}&find[created_at][$lte]=${isoTo}&find[eventType]=${encodeURIComponent(type)}&count=131072${getNightscoutToken(token)}`;
-    console.log(`[FOOD] Request: ${url}`.gray);
-    const response = await axios.get(url);
-    return response.data.map(d => ({
-      id: parseInt(`2${dayjs(d.created_at).format('YYYYMMDDHHmmss')}`),
-      timestamp: d.created_at,
-      carbs: d.carbs
-    }));
-  };
+  const url = `${baseUrl}/api/v1/treatments.json?find[created_at][$gte]=${isoFrom}&find[created_at][$lte]=${isoTo}&count=131072${getNightscoutToken(token)}`;
+  console.log(`[FOOD] Request: ${url}`.gray);
+  const response = await axios.get(url);
 
-  const data1 = await fetch('Meal Bolus');
-  const data2 = await fetch('Carb Correction');
-
-  return [...data1, ...data2].filter(e => e.carbs > 0).map(e => ({
-    extendedProperties: { factoryTimestamp: e.timestamp },
-    recordNumber: e.id,
-    timestamp: dayjs(e.timestamp).format('YYYY-MM-DDTHH:mm:ss'),
-    gramsCarbs: e.carbs,
-    foodType: "Unknown"
+  const data = response.data.map(d => ({
+    id: parseInt(`2${dayjs(d.created_at).format('YYYYMMDDHHmmss')}`),
+    timestamp: d.created_at,
+    carbs: d.carbs
   }));
+
+  return data
+    .filter(e => e.carbs > 0)
+    .map(e => ({
+      extendedProperties: { factoryTimestamp: e.timestamp },
+      recordNumber: e.id,
+      timestamp: dayjs(e.timestamp).format('YYYY-MM-DDTHH:mm:ss'),
+      gramsCarbs: e.carbs,
+      foodType: "Unknown"
+    }));
 };
 
 const getNightscoutInsulinEntries = async function (baseUrl, token, fromDate, toDate) {
@@ -72,17 +70,17 @@ const getNightscoutGlucoseEntries = async function (baseUrl, token, fromDate, to
   baseUrl = baseUrl.replace(/\/$/, "");
   const fromMills = dayjs(fromDate).startOf('day').valueOf();
   const toMills = dayjs(toDate).endOf('day').valueOf();
-  
+
   const url = `${baseUrl}/api/v1/entries.json?find[date][$gte]=${fromMills}&find[date][$lte]=${toMills}&count=131072${getNightscoutToken(token)}`;
-  
+
   console.log(`[DEBUG] Request URL: ${url}`.gray);
   const response = await axios.get(url);
-  
+
   let processed = response.data
-    .filter((d, index, self) => 
+    .filter((d, index, self) =>
       index === 0 || d.date !== self[index - 1].date
     )
-    .filter((_, i) => i % 2 === 0) 
+    .filter((_, i) => i % 2 === 0)
     .map(d => ({
       extendedProperties: { factoryTimestamp: dayjs(d.date).toISOString(), canMerge: "true" },
       recordNumber: parseInt(`1${dayjs(d.date).format('YYYYMMDDHHmmss')}`),
@@ -105,10 +103,10 @@ const selectUnscheduled = function (entries) {
 
   for (const dayEntries of Object.values(groups)) {
     // Количество точек пик-пик
-    const count = Math.floor(Math.random() * (12 - 6 + 1)) + 6; 
+    const count = Math.floor(Math.random() * (12 - 6 + 1)) + 6;
     const sortedEntries = dayEntries.sort((a, b) => dayjs(a.timestamp).valueOf() - dayjs(b.timestamp).valueOf());
     const slotSize = Math.floor(sortedEntries.length / count);
-    
+
     if (slotSize === 0) {
       result.push(...sortedEntries);
     } else {
@@ -117,7 +115,7 @@ const selectUnscheduled = function (entries) {
         const start = i * slotSize;
         const end = (i === count - 1) ? sortedEntries.length : (i + 1) * slotSize;
         const subSlot = sortedEntries.slice(start, end);
-        
+
         if (subSlot.length > 0) {
           const randomIndex = Math.floor(Math.random() * subSlot.length);
           result.push(subSlot[randomIndex]);
@@ -133,12 +131,12 @@ const getNightscoutAllEntries = async function (baseUrl, token, fromDate, toDate
   const glucose = await getNightscoutGlucoseEntries(baseUrl, token, fromDate, toDate);
   const food = await getNightscoutFoodEntries(baseUrl, token, fromDate, toDate);
   const insulin = await getNightscoutInsulinEntries(baseUrl, token, fromDate, toDate);
-  
-  return { 
-    glucoseEntriesScheduled: glucose, 
+
+  return {
+    glucoseEntriesScheduled: glucose,
     glucoseEntriesUnscheduled: selectUnscheduled(glucose),
-    foodEntries: food, 
-    insulinEntries: insulin 
+    foodEntries: food,
+    insulinEntries: insulin
   };
 };
 
