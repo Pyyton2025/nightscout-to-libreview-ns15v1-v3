@@ -12,8 +12,8 @@ Support V1 and V3 data.
 
 Open command line in your favorite folder:
 ```
-git clone https://github.com/Pyyton2025/nightscout-to-libreview.git
-cd nightscout-to-libreview
+git clone https://github.com/Pyyton2025/nightscout-to-libreview-ns15v1-v3.git
+cd nightscout-to-libreview-ns15v1-v3
 npm install
 npm start
 ```
